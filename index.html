@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anime Öneri Makinesi</title>
+<style>
+:root{
+  --bg:#000;
+  --card:#0b1220;
+  --accent1:#7C3AED;
+  --accent2:#06B6D4;
+  --text:#fff;
+  --muted:rgba(255,255,255,0.64);
+  --glass: rgba(255,255,255,0.03);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,Arial,sans-serif;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;min-height:100vh;padding:14px;gap:12px}
+header{display:flex;flex-direction:column;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#000;animation:logoGlow 2s infinite alternate;}
+@keyframes logoGlow{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+h1{font-size:18px;text-align:center}
+.lead{font-size:13px;color:var(--muted);text-align:center}
+.controls{display:flex;flex-direction:column;gap:8px;align-items:center;width:100%}
+.controls input[type=search]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:var(--text)}
+.btn{width:100%;padding:10px 12px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#000;font-weight:700;cursor:pointer;transition:all .2s ease}
+.btn:hover{opacity:.9;transform:scale(1.03)}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+main{flex:1;width:100%}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:transform .14s ease, box-shadow .3s ease;position:relative;border:2px solid transparent;background-clip:padding-box;animation:cardFloat 3s infinite alternate;}
+.card::after{content:"";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 30%, rgba(124,58,237,0.3), transparent 30%), radial-gradient(circle at 70% 70%, rgba(6,182,212,0.3), transparent 30%);animation:moveLights 4s linear infinite;pointer-events:none;border-radius:12px;}
+@keyframes moveLights{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@keyframes cardFloat{0%{transform:translateY(0)}50%{transform:translateY(-5px)}100%{transform:translateY(0)}}
+.card:hover{transform:scale(1.05);box-shadow:0 0 20px var(--accent1)}
+.thumb{width:100%;height:200px;object-fit:cover;background:#081018;transition:transform .3s ease}
+.card:hover .thumb{transform:scale(1.05)}
+.card-body{padding:12px;display:flex;flex-direction:column;gap:8px}
+.title{font-weight:700}
+.syn{font-size:13px;color:var(--muted);line-height:1.2;height:3.6em;overflow:hidden}
+.fav-btn{position:absolute;top:8px;right:8px;background:var(--accent1);color:#000;padding:4px 6px;font-size:12px;border-radius:6px;border:none;cursor:pointer;transition:all .2s ease}
+.fav-btn:hover{opacity:.8}
+footer{display:flex;justify-content:center;align-items:center;padding-top:10px;color:var(--muted);font-size:13px;flex-wrap:wrap;gap:6px}
+.empty{padding:20px;text-align:center;border-radius:12px;border:1px dashed rgba(255,255,255,0.03);color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:100}
+.modal.active{opacity:1;pointer-events:auto}
+.modal-card{background:var(--card);width:100%;max-width:400px;border-radius:12px;padding:18px;color:var(--text);box-shadow:0 6px 30px rgba(0,0,0,0.6);position:relative;animation:modalFade 0.3s ease;}
+@keyframes modalFade{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}
+.close{color:var(--muted);cursor:pointer;font-size:20px;position:absolute;top:12px;right:12px}
+.input{width:100%;padding:8px 10px;margin:6px 0;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--glass);color:var(--text)}
+.note{position:fixed;bottom:10px;right:10px;font-size:12px;color:var(--muted);background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:6px;z-index:50}
+@media(max-width:480px){.thumb{height:180px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">A</div>
+      <div>
+        <h1>Anime Öneri Makinesi</h1>
+        <p class="lead">Santolas Team</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input type="search" id="search" placeholder="Anime ismi, tür...">
+      <button id="btnSearch" class="btn">Ara</button>
+      <button id="btnRandom" class="btn ghost">Rastgele</button>
+      <button id="btnFavs" class="btn ghost">Favoriler</button>
+      <button id="btnSettings" class="btn ghost">Ayarlar</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="resultsArea">
+      <div class="empty">Yükleniyor...</div>
+    </div>
+  </main>
+
+  <footer>
+    <div>Made with ❤️ by Santolas — Slyer</div>
+  </footer>
+</div>
+
+<div class="note">instagram = unlywq</div>
+
+<!-- Modals -->
+<div id="modalSettings" class="modal">
+  <div class="modal-card">
+    <h3>Ayarlar <span class="close" id="closeSettings">✖</span></h3>
+    <label>Tema</label>
+    <select id="themeSelect" class="input">
+      <option value="amoled">AMOLED Siyah</option>
+      <option value="dark">Koyu Gri</option>
+      <option value="light">Açık</option>
+    </select>
+    <label>Dil</label>
+    <select id="langSelect" class="input">
+      <option value="tr">Türkçe</option>
+      <option value="en">English</option>
+    </select>
+    <div style="margin-top:6px;text-align:right">
+      <button id="saveSettings" class="btn">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalAnime" class="modal">
+  <div class="modal-card">
+    <span class="close" id="closeAnime">✖</span>
+    <h3 id="animeTitle">Başlık</h3>
+    <img id="animeImg" style="width:100%;border-radius:8px;margin-bottom:6px">
+    <p id="animeSynopsis"></p>
+    <div>
+      <label>İzleme Durumu</label>
+      <select id="watchStatus" class="input">
+        <option value="none">Seçilmedi</option>
+        <option value="completed">İzledim</option>
+        <option value="watching">İzliyorum</option>
+        <option value="plan">İzleyeceğim</option>
+      </select>
+      <label>Puan (1-5)</label>
+      <select id="rateSelect" class="input">
+        <option value="0">—</option>
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option>5</option>
+      </select>
+      <div style="margin-top:6px;text-align:right">
+        <button id="favAnimeBtn" class="btn">Favorilere Ekle</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const resultsArea=document.getElementById('resultsArea');
+const searchInput=document.getElementById('search');
+const btnSearch=document.getElementById('btnSearch');
+const btnRandom=document.getElementById('btnRandom');
+const btnFavs=document.getElementById('btnFavs');
+const btnSettings=document.getElementById('btnSettings');
+const modalSettings=document.getElementById('modalSettings');
+const modalAnime=document.getElementById('modalAnime');
+const closeSettings=document.getElementById('closeSettings');
+const closeAnime=document.getElementById('closeAnime');
+const animeTitle=document.getElementById('animeTitle');
+const animeImg=document.getElementById('animeImg');
+const animeSynopsis=document.getElementById('animeSynopsis');
+const favAnimeBtn=document.getElementById('favAnimeBtn');
+const watchStatus=document.getElementById('watchStatus');
+const rateSelect=document.getElementById('rateSelect');
+
+let currentAnime=null;
+
+// Theme
+const themeSelect=document.getElementById('themeSelect');
+function applyTheme(name){
+  if(name==='amoled'){document.documentElement.style.setProperty('--bg','#000');document.documentElement.style.setProperty('--card','#0b1220');document.documentElement.style.setProperty('--text','#fff');document.documentElement.style.setProperty('--muted','rgba(255,255,255,0.64)');}
+  else if(name==='dark'){document.documentElement.style.setProperty('--bg','#07101a');document.documentElement.style.setProperty('--card','#0b1622');document.documentElement.style.setProperty('--text','#fff');document.documentElement.style.setProperty('--muted','rgba(255,255,255,0.64)');}
+  else{document.documentElement.style.setProperty('--bg','#f7f7f8');document.documentElement.style.setProperty('--card','#fff');document.documentElement.style.setProperty('--text','#0b1220');document.documentElement.style.setProperty('--muted','rgba(0,0,0,0.6)');}
+}
+themeSelect.value=localStorage.getItem('app_theme')||'amoled';
+applyTheme(themeSelect.value);
+document.getElementById('saveSettings').addEventListener('click',()=>{
+  const t=themeSelect.value; applyTheme(t); localStorage.setItem('app_theme',t); modalSettings.classList.remove('active');
+});
+
+// Modals
+btnSettings.addEventListener('click',()=>modalSettings.classList.add('active'));
+closeSettings.addEventListener('click',()=>modalSettings.classList.remove('active'));
+closeAnime.addEventListener('click',()=>{
+  if(currentAnime) saveAnimeData(currentAnime);
+  modalAnime.classList.remove('active');
+});
+
+// Anime Fetch
+async function searchAnime(query){
+  resultsArea.innerHTML='<div class="empty">Yükleniyor...</div>';
+  try{
+    const res=await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=12`);
+    const data=await res.json();
+    renderResults(data.data);
+  }catch(e){resultsArea.innerHTML='<div class="empty">Hata oluştu.</div>';}
+}
+
+async function randomAnimes(count=12){
+  resultsArea.innerHTML='<div class="empty">Yükleniyor...</div>';
+  try{
+    const promises = Array.from({length: count}, () =>
+      fetch('https://api.jikan.moe/v4/random/anime').then(r=>r.json()).catch(()=>null)
+    );
+    const results = await Promise.all(promises);
+    const list = results.filter(r => r && r.data).map(r=>r.data);
+    if(list.length) renderResults(list);
+    else resultsArea.innerHTML='<div class="empty">Hata oluştu.</div>';
+  }catch(e){resultsArea.innerHTML='<div class="empty">Hata oluştu.</div>';}
+}
+
+function renderResults(animes){
+  if(!animes||!animes.length){resultsArea.innerHTML='<div class="empty">Sonuç bulunamadı.</div>';return;}
+  resultsArea.innerHTML='';
+  animes.forEach(a=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`
+      <img class="thumb" src="${a.images.jpg.image_url}" alt="${a.title}" loading="lazy">
+      <div class="card-body">
+        <div class="title">${a.title}</div>
+        <div class="syn">${a.synopsis?a.synopsis.substring(0,120)+'...':'No description'}</div>
+      </div>
+      <button class="fav-btn">${isFav(a)?'★':'☆'}</button>
+    `;
+    card.querySelector('.card-body').addEventListener('click',()=>{
+      currentAnime=a;
+      animeTitle.textContent=a.title;
+      animeImg.src=a.images.jpg.image_url;
+      animeSynopsis.textContent=a.synopsis||'No description';
+      const saved=getAnimeData(a.mal_id);
+      watchStatus.value=saved?.status||'none';
+      rateSelect.value=saved?.rate||'0';
+      modalAnime.classList.add('active');
+    });
+    card.querySelector('.fav-btn').addEventListener('click',(e)=>{
+      e.stopPropagation();
+      toggleFav(a);
+      card.querySelector('.fav-btn').textContent=isFav(a)?'★':'☆';
+    });
+    resultsArea.appendChild(card);
+  });
+}
+
+// Buttons
+btnSearch.addEventListener('click',()=>{const q=searchInput.value.trim(); if(q)searchAnime(q);});
+searchInput.addEventListener('keypress',(e)=>{if(e.key==='Enter') btnSearch.click();});
+btnRandom.addEventListener('click',()=>randomAnimes(12));
+btnFavs.addEventListener('click',()=>{
+  const favs=getFavs();
+  if(!favs.length){resultsArea.innerHTML='<div class="empty">Favori yok.</div>';return;}
+  renderResults(favs);
+});
+
+// Favorites
+function getFavs(){return JSON.parse(localStorage.getItem('anime_favs')||'[]');}
+function isFav(anime){return getFavs().some(f=>f.mal_id===anime.mal_id);}
+function toggleFav(anime){
+  let favs=getFavs();
+  const exists=favs.find(f=>f.mal_id===anime.mal_id);
+  if(exists){favs=favs.filter(f=>f.mal_id!==anime.mal_id);}
+  else{favs.push({mal_id:anime.mal_id,title:anime.title,images:anime.images,synopsis:anime.synopsis});}
+  localStorage.setItem('anime_favs',JSON.stringify(favs));
+}
+
+// Anime data
+function saveAnimeData(anime){
+  let data=JSON.parse(localStorage.getItem('anime_data')||'{}');
+  data[anime.mal_id]={status:watchStatus.value,rate:rateSelect.value};
+  localStorage.setItem('anime_data',JSON.stringify(data));
+}
+function getAnimeData(id){
+  let data=JSON.parse(localStorage.getItem('anime_data')||'{}');
+  return data[id];
+}
+
+// Modal fav & save
+favAnimeBtn.addEventListener('click',()=>{
+  if(currentAnime){toggleFav(currentAnime); saveAnimeData(currentAnime); renderResults(getFavs()); modalAnime.classList.remove('active');}
+});
+watchStatus.addEventListener('change',()=>{if(currentAnime)saveAnimeData(currentAnime);});
+rateSelect.addEventListener('change',()=>{if(currentAnime)saveAnimeData(currentAnime);});
+
+// Auto load
+randomAnimes(12);
+</script>
+</body>
+</html>
